@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfólio com Login & Salvar Itens</title>
+<style>
+  /* (mantive o mesmo CSS do exemplo anterior, para não alongar aqui) */
+  /* Vou usar o CSS do exemplo anterior, se quiser posso enviar ele completo no final */
+  /* Você pode usar o CSS anterior sem mudanças */
+</style>
+</head>
+<body>
+
+<header>Meu Portfólio</header>
+
+<!-- Tela de login -->
+<div id="login-screen">
+  <div id="login-box">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Usuário" autocomplete="username" />
+    <input type="password" id="password" placeholder="Senha" autocomplete="current-password" />
+    <button id="login-btn">Entrar</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<nav style="display:none;">
+  <button class="tab-btn active" data-tab="edições">
+    Edições
+    <span class="add-btn" title="Adicionar" data-tab="edições">+</span>
+  </button>
+  <button class="tab-btn" data-tab="programacao">
+    Programação
+    <span class="add-btn" title="Adicionar" data-tab="programacao">+</span>
+  </button>
+  <button class="tab-btn" data-tab="historias">
+    Histórias
+    <span class="add-btn" title="Adicionar" data-tab="historias">+</span>
+  </button>
+  <button class="tab-btn" data-tab="outros">
+    Outros Links
+    <span class="add-btn" title="Adicionar" data-tab="outros">+</span>
+  </button>
+</nav>
+
+<main style="display:none;">
+  <section id="edições" class="tab-content active">
+    <h2>Galeria de Edições</h2>
+    <div class="gallery" id="edições-gallery">
+      <!-- Imagens carregadas via JS -->
+    </div>
+  </section>
+
+  <section id="programacao" class="tab-content" style="display:none;">
+    <h2>Projetos de Programação</h2>
+    <ul class="link-list" id="programacao-list">
+      <!-- Links carregados via JS -->
+    </ul>
+  </section>
+
+  <section id="historias" class="tab-content" style="display:none;">
+    <h2>Minhas Histórias</h2>
+    <ul class="link-list" id="historias-list">
+      <!-- Links carregados via JS -->
+    </ul>
+  </section>
+
+  <section id="outros" class="tab-content" style="display:none;">
+    <h2>Outros Links</h2>
+    <ul class="link-list" id="outros-list">
+      <!-- Links carregados via JS -->
+    </ul>
+  </section>
+</main>
+
+<!-- Modal para imagem ampliada -->
+<div id="modal" onclick="this.style.display='none'">
+  <img id="modal-img" src="" alt="Imagem Ampliada" />
+</div>
+
+<!-- Modal adicionar item -->
+<div id="add-modal-bg">
+  <div id="add-modal">
+    <span class="close-btn" title="Fechar">&times;</span>
+    <h3>Adicionar Item</h3>
+    <form id="add-form">
+      <label for="item-type">Tipo de item:</label>
+      <select id="item-type" required>
+        <option value="">-- Escolha um tipo --</option>
+        <option value="image">Imagem (URL)</option>
+        <option value="link">Link</option>
+        <option value="file">Arquivo (URL)</option>
+      </select>
+
+      <label for="item-url" id="url-label">URL:</label>
+      <input type="url" id="item-url" placeholder="https://exemplo.com" required />
+
+      <label for="item-title" id="title-label">Título / Descrição:</label>
+      <input type="text" id="item-title" placeholder="Digite um título ou descrição" required />
+
+      <button type="submit">Adicionar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Dados para login
+  const validUser = 'GraysonCarme';
+  const validPass = '972ind27y';
+
+  // Elementos DOM
+  const loginScreen = document.getElementById('login-screen');
+  const loginBtn = document.getElementById('login-btn');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const loginError = document.getElementById('login-error');
+  const nav = document.querySelector('nav');
+  const main = document.querySelector('main');
+
+  // Elementos de abas
+  const tabs = document.querySelectorAll('.tab-btn');
+  const contents = document.querySelectorAll('.tab-content');
+
+  // Modal imagens
+  const modal = document.getElementById('modal');
+  const modalImg = document.getElementById('modal-img');
+
+  // Modal adicionar item
+  const addModalBg = document.getElementById('add-modal-bg');
+  const addModal = document.getElementById('add-modal');
+  const closeAddBtn = addModal.querySelector('.close-btn');
+  const addForm = document.getElementById('add-form');
+  const itemType = document.getElementById('item-type');
+  const itemUrl = document.getElementById('item-url');
+  const itemTitle = document.getElementById('item-title');
+  const urlLabel = document.getElementById('url-label');
+  const titleLabel = document.getElementById('title-label');
+
+  // Para controlar aba atual para adicionar
+  let currentAddTab = 'edições';
+
+  // ===== LOGIN =====
+  loginBtn.addEventListener('click', () => {
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value;
+
+    if(user === validUser && pass === validPass) {
+      loginError.textContent = '';
+      loginScreen.style.display = 'none';
+      nav.style.display = 'flex';
+      main.style.display = 'block';
+
+      carregarDados(); // Carregar itens salvos ao logar
+    } else {
+      loginError.textContent = 'Usuário ou senha incorretos.';
+    }
+  });
+
+  [usernameInput, passwordInput].forEach(input => {
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter') loginBtn.click();
+    });
+  });
+
+  // ===== NAVEGAÇÃO ENTRE ABAS =====
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      contents.forEach(c => c.style.display = 'none');
+      tab.classList.add('active');
+      const tabId = tab.getAttribute('data-tab');
+      document.getElementById(tabId).style.display = 'block';
+    });
+  });
+
+  // ===== MODAL IMAGEM AMPLIADA =====
+  function openModalWithImage(src){
+    modalImg.src = src;
+    modal.style.display = 'flex';
+  }
+  function closeModal(){
+    modal.style.display = 'none';
+  }
+
+  modal.addEventListener('click', e => {
+    if(e.target === modal) closeModal();
+  });
+
+  // ===== MODAL ADICIONAR ITEM =====
+  // Abrir modal ao clicar no +
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      currentAddTab = btn.getAttribute('data-tab');
+      openAddModal();
+    });
+  });
+
+  function openAddModal() {
+    addForm.reset();
+    itemUrl.placeholder = "https://exemplo.com";
+    urlLabel.textContent = "URL:";
+    titleLabel.textContent = "Título / Descrição:";
+    addModalBg.classList.add('active');
+  }
+  function closeAddModal() {
+    addModalBg.classList.remove('active');
+  }
+  closeAddBtn.addEventListener('click', closeAddModal);
+  addModalBg.addEventListener('click', e => {
+    if(e.target === addModalBg) closeAddModal();
+  });
+
+  // Alterar placeholders conforme tipo
+  itemType.addEventListener('change', () => {
+    if(itemType.value === 'image'){
+      itemUrl.placeholder = "https://exemplo.com/imagem.jpg";
+      urlLabel.textContent = "URL da imagem:";
+      titleLabel.textContent = "Título da imagem:";
+    } else if(itemType.value === 'link'){
+      itemUrl.placeholder = "https://exemplo.com";
+      urlLabel.textContent = "URL do link:";
+      titleLabel.textContent = "Título / Nome do link:";
+    } else if(itemType.value === 'file'){
+      itemUrl.placeholder = "https://exemplo.com/arquivo.pdf";
+      urlLabel.textContent = "URL do arquivo:";
+      titleLabel.textContent = "Nome do arquivo:";
+    } else {
+      itemUrl.placeholder = "https://exemplo.com";
+      urlLabel.textContent = "URL:";
+      titleLabel.textContent = "Título / Descrição:";
+    }
+  });
+
+  // ===== ADICIONAR ITEM =====
+  addForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const type = itemType.value;
+    const url = itemUrl.value.trim();
+    const title = itemTitle.value.trim();
+
+    if(!type || !url || !title) {
+      alert('Preencha todos os campos!');
+      return;
+    }
+
+    adicionarItem(currentAddTab, type, url, title);
+    salvarDados();
+    closeAddModal();
+  });
+
+  // ===== FUNÇÕES =====
+
+  // Adiciona o item na aba (DOM)
+  function adicionarItem(aba, tipo, url, titulo) {
+    if(aba === 'edições') {
+      if(tipo === 'image') {
+        const gallery = document.getElementById('edições-gallery');
+        const a = document.createElement('a');
+        a.href = "#modal";
+        a.setAttribute('data-src', url);
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = titulo;
+        img.classList.add('added-image');
+        a.appendChild(img);
+        gallery.appendChild(a);
+
+        a.addEventListener('click', ev => {
+          ev.preventDefault();
+          openModalWithImage(url);
+        });
+      } else {
+        alert('Na aba Edições só é possível adicionar imagens.');
+        return;
+      }
+    } else if(aba === 'programacao') {
+      if(tipo === 'link' || tipo === 'file') {
+        const ul = document.getElementById('programacao-list');
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = titulo;
+        li.appendChild(a);
+        ul.appendChild(li);
+      } else {
+        alert('Na aba Programação só é possível adicionar links ou arquivos.');
+        return;
+      }
+    } else if(aba === 'historias') {
+      if(tipo === 'link' || tipo === 'file') {
+        const ul = document.getElementById('historias-list');
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = titulo;
+        li.appendChild(a);
+        ul.appendChild(li);
+      } else {
+        alert('Na aba Histórias só é possível adicionar links ou arquivos.');
+        return;
+      }
+    } else if(aba === 'outros') {
+      if(tipo === 'link' || tipo === 'file') {
+        const ul = document.getElementById('outros-list');
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        if(tipo === 'file' && url.toLowerCase().startsWith('mailto:')) {
+          a.href = url;
+        } else {
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+        }
+        a.textContent = titulo;
+        li.appendChild(a);
+        ul.appendChild(li);
+      } else {
+        alert('Na aba Outros só é possível adicionar links ou arquivos.');
+        return;
+      }
+    }
+  }
+
+  // Salva todos os dados no localStorage
+  function salvarDados() {
+    // Para cada aba, guardamos um array com os objetos {type, url, title}
+    const dados = {
+      edições: [],
+      programacao: [],
+      historias: [],
+      outros: []
+    };
+
+    // Edições (imagens)
+    const edGaleria = document.getElementById('edições-gallery');
+    edGaleria.querySelectorAll('a').forEach(a => {
+      const url = a.getAttribute('data-src');
+      const titulo = a.querySelector('img').alt;
+      dados.edições.push({type:'image', url, title: titulo});
+    });
+
+    // Programação
+    const progList = document.getElementById('programacao-list');
+    progList.querySelectorAll('li').forEach(li => {
+      const a = li.querySelector('a');
+      dados.programacao.push({type:'link', url: a.href, title: a.textContent});
+    });
+
+    // Histórias
+    const histList = document.getElementById('historias-list');
+    histList.querySelectorAll('li').forEach(li => {
+      const a = li.querySelector('a');
+      dados.historias.push({type:'link', url: a.href, title: a.textContent});
+    });
+
+    // Outros
+    const outrosList = document.getElementById('outros-list');
+    outrosList.querySelectorAll('li').forEach(li => {
+      const a = li.querySelector('a');
+      dados.outros.push({type:'link', url: a.href, title: a.textContent});
+    });
+
+    localStorage.setItem('portfolioData', JSON.stringify(dados));
+  }
+
+  // Carrega dados do localStorage
+  function carregarDados() {
+    const dados = localStorage.getItem('portfolioData');
+    if(!dados) return;
+
+    const obj = JSON.parse(dados);
+
+    // Limpa tudo antes
+    document.getElementById('edições-gallery').innerHTML = '';
+    document.getElementById('programacao-list').innerHTML = '';
+    document.getElementById('historias-list').innerHTML = '';
+    document.getElementById('outros-list').innerHTML = '';
+
+    // Edições
+    obj.edições.forEach(item => {
+      adicionarItem('edições', item.type, item.url, item.title);
+    });
+    // Programação
+    obj.programacao.forEach(item => {
+      adicionarItem('programacao', item.type, item.url, item.title);
+    });
+    // Histórias
+    obj.historias.forEach(item => {
+      adicionarItem('historias', item.type, item.url, item.title);
+    });
+    // Outros
+    obj.outros.forEach(item => {
+      adicionarItem('outros', item.type, item.url, item.title);
+    });
+  }
+</script>
+
+<style>
+  /* CSS essencial para visual e layout */
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #111;
+    color: #eee;
+  }
+  header {
+    background: #222;
+    padding: 15px;
+    font-size: 1.5rem;
+    text-align: center;
+    font-weight: bold;
+  }
+  #login-screen {
+    position: fixed;
+    inset: 0;
+    background: #000c;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #login-box {
+    background: #222;
+    padding: 25px;
+    border-radius: 8px;
+    width: 280px;
+    box-shadow: 0 0 12px #08f;
+  }
+  #login-box h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+  }
+  #login-box input {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    font-size: 1rem;
+  }
+  #login-box button {
+    width: 100%;
+    background: #08f;
+    color: white;
+    font-weight: bold;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  #login-error {
+    color: #f66;
+    margin-top: 10px;
+    min-height: 20px;
+  }
+  nav {
+    background: #222;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    position: sticky;
+    top: 0;
+    border-bottom: 2px solid #08f;
+    z-index: 100;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 10px 15px;
+    position: relative;
+  }
+  nav button.active {
+    border-bottom: 3px solid #08f;
+    font-weight: bold;
+  }
+  nav button .add-btn {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-weight: bold;
+    font-size: 1.3rem;
+    cursor: pointer;
+    user-select: none;
+    color: #0af;
+  }
+  main {
+    padding: 15px;
+  }
+  .tab-content {
+    display: none;
+  }
+  .tab-content.active {
+    display: block;
+  }
+  .gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .gallery a img.added-image {
+    width: 140px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .gallery a img.added-image:hover {
+    border-color: #0af;
+  }
+  ul.link-list {
+    list-style: none;
+    padding: 0;
+  }
+  ul.link-list li {
+    margin-bottom: 8px;
+  }
+  ul.link-list li a {
+    color: #0af;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  ul.link-list li a:hover {
+    text-decoration: underline;
+  }
+  #modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 200;
+  }
+  #modal img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+  }
+  #add-modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 300;
+  }
+  #add-modal-bg.active {
+    display: flex;
+  }
+  #add-modal {
+    background: #222;
+    padding: 20px 25px;
+    border-radius: 8px;
+    width: 320px;
+    box-shadow: 0 0 10px #0af;
+    position: relative;
+  }
+  #add-modal h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: 700;
+    color: #08f;
+  }
+  #add-modal label {
+    display: block;
+    margin: 10px 0 5px;
+  }
+  #add-modal input, #add-modal select {
+    width: 100%;
+    padding: 8px 7px;
+    border-radius: 5px;
+    border: none;
+    font-size: 1rem;
+  }
+  #add-modal button {
+    margin-top: 15px;
+    width: 100%;
+    background: #08f;
+    color: white;
+    font-weight: 700;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.8rem;
+    cursor: pointer;
+    user-select: none;
+    color: #08f;
+  }
+</style>
+
+</body>
+</html>
